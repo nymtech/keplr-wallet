@@ -6,6 +6,8 @@ import { Notification } from "./types";
 
 import { Buffer } from "buffer/";
 
+import { createNymMixnetClient } from "@nymproject/sdk";
+
 interface CosmosSdkError {
   codespace: string;
   code: number;
@@ -36,6 +38,10 @@ export class BackgroundTxService {
     mode: "async" | "sync" | "block"
   ): Promise<Uint8Array> {
     const chainInfo = await this.chainsService.getChainInfo(chainId);
+
+    const nym = await createNymMixnetClient();
+    console.log({ nym });
+
     const restInstance = Axios.create({
       ...{
         baseURL: chainInfo.rest,
