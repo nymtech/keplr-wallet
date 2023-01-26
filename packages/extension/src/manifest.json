@@ -31,5 +31,6 @@
     "injectedScript.bundle.js",
     "assets/logo-256.png",
     "blocklist.html"
-  ]
+  ],
+  "content_security_policy": "default-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self' *; style-src 'unsafe-inline'"
 }

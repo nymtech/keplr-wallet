@@ -6,7 +6,7 @@ import { Notification } from "./types";
 
 import { Buffer } from "buffer/";
 
-import { createNymMixnetClient } from "@nymproject/sdk";
+import { createNymMixnetClient } from "@nymproject/sdk-commonjs";
 
 interface CosmosSdkError {
   codespace: string;
@@ -39,14 +39,39 @@ export class BackgroundTxService {
   ): Promise<Uint8Array> {
     const chainInfo = await this.chainsService.getChainInfo(chainId);
 
-    const nym = await createNymMixnetClient();
-    console.log({ nym });
+    // SNIP >>> ----- this should happen after log in and be attached to some global context -----
+
+    // start the web worker
+    const nym = await createNymMixnetClient({ mimeTypes: ['application/json'] });
+
+    // initialise
+    const nymApiUrl = 'https://validator.nymtech.net/api';
+    await nym.client.start({ nymApiUrl, clientId: 'keplr wallet' })
+
+    // sleep to allow the client to start up
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // <<< SNIP ----------------------------------------------------------------------------------
 
     const restInstance = Axios.create({
       ...{
         baseURL: chainInfo.rest,
       },
       ...chainInfo.restConfig,
+    });
+
+    restInstance.interceptors.request.use(async function (config) {
+      try {
+        console.log(config.data);
+        const message = JSON.stringify(config.data);
+
+        await nym.client.send({ payload: { message, mimeType: 'application/json' }, recipient: '4ggZ7PQBov9Jd2pkptZ4DctNusutgPndSMiN1iDzMZ9L.H4YKMBKMxx8ALwtBEyxYheFY9pTwnzmmyCUcqoP6FSgC@E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM' })
+
+        return config;
+      } catch (e) {
+        console.log("error >>>>", e);
+      }
+      return config;
     });
 
     this.notification.create({

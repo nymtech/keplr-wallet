@@ -5954,6 +5954,11 @@
     "@nodelib/fs.scandir" "2.1.4"
     fastq "^1.6.0"
 
+"@nymproject/sdk-commonjs@^1.1.5":
+  version "1.1.5"
+  resolved "https://registry.yarnpkg.com/@nymproject/sdk-commonjs/-/sdk-commonjs-1.1.5.tgz#7ba6a64917ba461cf5e0221a04f96c77a72b9d82"
+  integrity sha512-3tGyZ1a9NjGbQjRnDAxCDsd6JhnKUe/s+5QBMmEsvWOY+0Ngvakv36HDgsFAR34kTosg7wMkIgnRuD229LLGjQ==
+
 "@octokit/auth-token@^2.4.0":
   version "2.4.4"
   resolved "https://registry.yarnpkg.com/@octokit/auth-token/-/auth-token-2.4.4.tgz#ee31c69b01d0378c12fd3ffe406030f3d94d3b56"
