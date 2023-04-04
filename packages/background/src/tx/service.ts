@@ -1,4 +1,5 @@
-import Axios from "axios";
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// import Axios from "axios";
 import { ChainsService } from "../chains";
 import { PermissionService } from "../permission";
 import { TendermintTxTracer } from "@keplr-wallet/cosmos";
@@ -35,44 +36,75 @@ export class BackgroundTxService {
   async sendTx(
     chainId: string,
     tx: unknown,
-    mode: "async" | "sync" | "block"
+    _: "async" | "sync" | "block"
   ): Promise<Uint8Array> {
     const chainInfo = await this.chainsService.getChainInfo(chainId);
+    console.log("tx >>>>>>>>>>>> ", { tx });
 
     // SNIP >>> ----- this should happen after log in and be attached to some global context -----
 
     // start the web worker
-    const nym = await createNymMixnetClient({ mimeTypes: ['application/json'] });
+    const nym = await createNymMixnetClient();
 
     // initialise
-    const nymApiUrl = 'https://validator.nymtech.net/api';
-    await nym.client.start({ nymApiUrl, clientId: 'keplr wallet' })
+    console.log("Let's go, Nym!");
+
+    const nymApiUrl = "https://validator.nymtech.net/api";
+    await nym.client.start({ nymApiUrl, clientId: "Keplr wallet" });
+
+    nym.events.subscribeToConnected((e) => {
+      console.log("address >>>>>> ", e.args.address);
+    });
 
     // sleep to allow the client to start up
-    await new Promise(resolve => setTimeout(resolve, 5000));
-
+    await new Promise((resolve) => setTimeout(resolve, 5000));
     // <<< SNIP ----------------------------------------------------------------------------------
 
-    const restInstance = Axios.create({
-      ...{
-        baseURL: chainInfo.rest,
-      },
-      ...chainInfo.restConfig,
+    const message = JSON.stringify({
+      tx,
+      returnAddress: await nym.client.selfAddress(),
     });
 
-    restInstance.interceptors.request.use(async function (config) {
-      try {
-        console.log(config.data);
-        const message = JSON.stringify(config.data);
+    const recipient =
+      "9fmWwtBFzpPLijLnNhSNUfTeHfrpQB6YBrGhnKrrRKdz.9GP5LBEXV2reCVCh5v6R3K1yzk5r2KToyC9JMuq5Agpz@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh";
 
-        await nym.client.send({ payload: { message, mimeType: 'application/json' }, recipient: '4ggZ7PQBov9Jd2pkptZ4DctNusutgPndSMiN1iDzMZ9L.H4YKMBKMxx8ALwtBEyxYheFY9pTwnzmmyCUcqoP6FSgC@E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM' })
+    const sendTxViaMixnet = async (): Promise<string> =>
+      new Promise(async (res, _) => {
+        try {
+          console.log(`Sending to  ${recipient} through mixnet >>>>>`, tx);
+          await nym.client.send({
+            payload: { message, mimeType: "text/plain" },
+            recipient,
+          });
+          await nym.events.subscribeToTextMessageReceivedEvent((e) => {
+            console.log("Received tx hash: ", e.args.payload);
 
-        return config;
-      } catch (e) {
-        console.log("error >>>>", e);
-      }
-      return config;
-    });
+            res(e.args.payload);
+          });
+        } catch (e) {
+          console.log("error >>>>", e);
+        }
+      });
+
+    const txHash = await sendTxViaMixnet();
+
+    // const restInstance = Axios.create({
+    //   ...{
+    //     baseURL: chainInfo.rest,
+    //   },
+    //   ...chainInfo.restConfig,
+    // });
+
+    // console.log("Waiting for response");
+    // nym.events.subscribeToTextMessageReceivedEvent((e) => {
+    //   console.log(e.args.payload);
+    //   res(e.args.payload);
+    // });
+
+    // restInstance.interceptors.request.use(async function (config) {
+    //   console.log(config);
+
+    // });
 
     this.notification.create({
       iconRelativeUrl: "assets/logo-256.png",
@@ -80,50 +112,50 @@ export class BackgroundTxService {
       message: "Wait a second",
     });
 
-    const isProtoTx = Buffer.isBuffer(tx) || tx instanceof Uint8Array;
+    // const isProtoTx = Buffer.isBuffer(tx) || tx instanceof Uint8Array;
 
-    const params = isProtoTx
-      ? {
-          tx_bytes: Buffer.from(tx as any).toString("base64"),
-          mode: (() => {
-            switch (mode) {
-              case "async":
-                return "BROADCAST_MODE_ASYNC";
-              case "block":
-                return "BROADCAST_MODE_BLOCK";
-              case "sync":
-                return "BROADCAST_MODE_SYNC";
-              default:
-                return "BROADCAST_MODE_UNSPECIFIED";
-            }
-          })(),
-        }
-      : {
-          tx,
-          mode: mode,
-        };
+    // const params = isProtoTx
+    //   ? {
+    //       tx_bytes: Buffer.from(tx as any).toString("base64"),
+    //       mode: (() => {
+    //         switch (mode) {
+    //           case "async":
+    //             return "BROADCAST_MODE_ASYNC";
+    //           case "block":
+    //             return "BROADCAST_MODE_BLOCK";
+    //           case "sync":
+    //             return "BROADCAST_MODE_SYNC";
+    //           default:
+    //             return "BROADCAST_MODE_UNSPECIFIED";
+    //         }
+    //       })(),
+    //     }
+    //   : {
+    //       tx,
+    //       mode: mode,
+    //     };
 
     try {
-      const result = await restInstance.post(
-        isProtoTx ? "/cosmos/tx/v1beta1/txs" : "/txs",
-        params
-      );
+      // const result = await restInstance.post(
+      //   isProtoTx ? "/cosmos/tx/v1beta1/txs" : "/txs",
+      //   {}
+      // );
 
-      const txResponse = isProtoTx ? result.data["tx_response"] : result.data;
+      // const txResponse = isProtoTx ? result.data["tx_response"] : result.data;
 
-      if (txResponse.code != null && txResponse.code !== 0) {
-        throw new Error(txResponse["raw_log"]);
-      }
+      // if (txResponse.code != null && txResponse.code !== 0) {
+      //   throw new Error(txResponse["raw_log"]);
+      // }
 
-      const txHash = Buffer.from(txResponse.txhash, "hex");
+      const txHashAsBuffer = Buffer.from(txHash, "hex");
 
       const txTracer = new TendermintTxTracer(chainInfo.rpc, "/websocket");
-      txTracer.traceTx(txHash).then((tx) => {
+      txTracer.traceTx(txHashAsBuffer).then((tx) => {
         txTracer.close();
         BackgroundTxService.processTxResultNotification(this.notification, tx);
       });
 
-      return txHash;
+      return txHashAsBuffer;
     } catch (e) {
       console.log(e);
       BackgroundTxService.processTxErrorNotification(this.notification, e);
